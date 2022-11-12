@@ -33,7 +33,7 @@ namespace SharpImpersonation
 
             bool listProcs = false;
 
-            bool wmilist = false;
+            bool wmi = false;
 
             try
             {
@@ -91,7 +91,7 @@ namespace SharpImpersonation
 
                 if (arguments.Arguments.ContainsKey("wmi"))
                 {
-                    wmilist = true;
+                    wmi = true;
                 }
 
                 if (arguments.Arguments.ContainsKey("user"))
@@ -121,7 +121,7 @@ namespace SharpImpersonation
             banner();
             if (listProcs)
             {
-                if (wmilist)
+                if (wmi)
                 {
                     ListUsersWMI();
                     return;
@@ -143,11 +143,19 @@ namespace SharpImpersonation
                 //CheckArgs();
                 Console.WriteLine("\r\n[*] Username given, checking processes");
                 Dictionary<String, UInt32> ProcByUser = new Dictionary<String, UInt32>();
-                ProcByUser = Enumeration.EnumerateTokens(false);
+                if (wmi)
+                {
+                    Console.WriteLine("\r\n[*] Using WMI to check processes");
+                    ProcByUser = Enumeration.EnumerateTokensWMI();
+                }
+                else
+                {
+                    ProcByUser = Enumeration.EnumerateTokens(false);
+                }
                 bool userfound = false;
                 foreach (String name in ProcByUser.Keys)
                 {
-                    if (name == username)
+                    if (name.ToUpper() == username.ToUpper())
                     {
                         userfound = true;
                         Console.WriteLine("\r\n[+] Found process for user " + username + " with PID: " + (int)ProcByUser[name] + "\r\n");
@@ -159,7 +167,7 @@ namespace SharpImpersonation
                         }
                         else
                         {
-                            ImpersonateByTechnique(ProcId, binary, name);
+                            ImpersonateByTechnique(ProcId, binary, name, wmi);
                         }
                     }
                 }
@@ -201,7 +209,7 @@ namespace SharpImpersonation
                         Environment.Exit(0);
                     }
 
-                    ImpersonateByTechnique(procId, binary, uname);
+                    ImpersonateByTechnique(procId, binary, uname, wmi);
                 }
             }
 
@@ -237,7 +245,7 @@ namespace SharpImpersonation
                 return;
             }
 
-            void ImpersonateByTechnique(int ProcessID, string bin, string uname)
+            void ImpersonateByTechnique(int ProcessID, string bin, string uname, bool wmienum)
             {
                 Tokens t = new Tokens();
 
@@ -254,9 +262,6 @@ namespace SharpImpersonation
                         t.ImpersonateUser(ProcessID);
                         break;
 
-                    case "SetThreadToken":
-                        t.SetThreadToken(ProcessID);
-                        break;
                 }
                 return;
             }
@@ -339,10 +344,8 @@ namespace SharpImpersonation
             Console.WriteLine("\r\nSharpImpersonation.exe user:<user> shellcode:<base64shellcode>");
             Console.WriteLine("\r\n======================  Impersonate process with the PID <ID> and start a <binary>  ======================");
             Console.WriteLine("\r\nSharpImpersonation.exe pid:<ID> binary:<binary-Path>");
-            Console.WriteLine("\r\n======================  Impersonate user <user> via ImpersonateLoggedOnuser for the current session  ======================");
+            Console.WriteLine("\r\n======================  Impersonate user <user> to use this token for the current process (NtSetInformationThread)  ======================");
             Console.WriteLine("\r\nSharpImpersonation.exe user:<user> technique:ImpersonateLoggedOnuser");
-            Console.WriteLine("\r\n======================  Impersonate user <user> via SetThreadToken for the current session  ======================");
-            Console.WriteLine("\r\nSharpImpersonation.exe user:<user> technique:SetThreadToken");
             return;
         }
 
